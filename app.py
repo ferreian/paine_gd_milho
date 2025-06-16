@@ -839,7 +839,7 @@ df_visu["Data Colheita"] = pd.to_datetime(
     df_visu["Data Colheita"], errors="coerce").dt.strftime("%d/%m/%Y")
 
 # 📋 Exibir com AgGrid
-st.markdown("### 📋 Resultados Visíveis")
+st.markdown("### 📋 Resultados")
 gb = GridOptionsBuilder.from_dataframe(df_visu)
 gb.configure_default_column(cellStyle={'fontSize': '14px'})
 gb.configure_grid_options(headerHeight=30)
