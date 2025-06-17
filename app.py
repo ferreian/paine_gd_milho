@@ -332,11 +332,11 @@ data_max = df_resultados["data_plantio"].max().date()
 # 📅 Seletor de Datas
 col_data_ini, col_data_fim = st.columns(2)
 with col_data_ini:
-    data_inicio = st.date_input("Data Inicial", value=data_min,
-                                min_value=data_min, max_value=data_max, key="data_ini_mat")
+    data_inicio = st.date_input("Data Inicial", value=data_min, min_value=data_min, max_value=data_max,
+                                format="DD/MM/YYYY", key="data_ini_mat")
 with col_data_fim:
-    data_final = st.date_input("Data Final", value=data_max,
-                               min_value=data_min, max_value=data_max, key="data_fim_mat")
+    data_final = st.date_input("Data Final", value=data_max, min_value=data_min, max_value=data_max,
+                               format="DD/MM/YYYY", key="data_fim_mat")
 
 # ⏳ Aplicar filtro de datas
 df_data = df_resultados[
@@ -345,7 +345,9 @@ df_data = df_resultados[
 ]
 
 # 🎯 Filtros hierárquicos
-col_epoca, col_reg, col_est, col_cid, col_prod, col_faz = st.columns(6)
+col_epoca, col_reg, col_est, col_cid, col_prod, col_faz, col_resp = st.columns(
+    7)
+
 with col_epoca:
     filtro_epoca = st.selectbox("Época", [
                                 "Todos"] + sorted(df_data["epoca"].dropna().unique().tolist()), key="epoca_mat")
@@ -383,12 +385,15 @@ with col_faz:
 if filtro_fazenda != "Todos":
     df_temp = df_temp[df_temp["fazenda"] == filtro_fazenda]
 
+with col_resp:
+    filtro_responsavel = st.selectbox("Responsável", [
+                                      "Todos"] + sorted(df_temp["nome"].dropna().unique().tolist()), key="resp_mat")
+if filtro_responsavel != "Todos":
+    df_temp = df_temp[df_temp["nome"] == filtro_responsavel]
+
 # 📈 Gráfico
-
-
 df_plot = df_temp.dropna(
     subset=["prod_13_sc_ha", "tratamento", "resultado_id"])
-
 df_agrupado = (
     df_plot.groupby("tratamento", as_index=False)
     .agg(prod_13_sc_ha=("prod_13_sc_ha", "mean"), n_resultados=("resultado_id", "count"))
@@ -617,7 +622,35 @@ with col_graf_disp2:
 # 📈 Relação: Média do Local vs Produção do Material
 st.markdown(
     "### 📈Índice Ambiental: Relação entre Média do Local e Produção do Material")
-st.write("Selecione os filtros abaixo, incluíndo o intervalo de datas(Plantio) e escolha os materiais para visualizar a análise.")
+st.write("Selecione os filtros abaixo, incluíndo o intervalo de datas (Plantio) e escolha os materiais para visualizar a análise.")
+
+# 🔁 Conversão de data
+df_resultados["data_plantio"] = pd.to_datetime(
+    df_resultados["data_plantio"], errors="coerce")
+
+# 📅 Filtros por data (ANTES dos filtros geográficos)
+data_min_ia = df_resultados["data_plantio"].min().date()
+data_max_ia = df_resultados["data_plantio"].max().date()
+
+col_d1, col_d2 = st.columns(2)
+with col_d1:
+    data_inicio_ia = st.date_input(
+        "Data Inicial",
+        value=data_min_ia,
+        min_value=data_min_ia,
+        max_value=data_max_ia,
+        format="DD/MM/YYYY",
+        key="data_ini_ia"
+    )
+with col_d2:
+    data_final_ia = st.date_input(
+        "Data Final",
+        value=data_max_ia,
+        min_value=data_min_ia,
+        max_value=data_max_ia,
+        format="DD/MM/YYYY",
+        key="data_fim_ia"
+    )
 
 # 🔎 Filtros específicos do bloco
 col1, col2, col3, col4 = st.columns(4)
@@ -647,24 +680,7 @@ with col4:
 if filtro_cidade_ia != "Todos":
     df_temp_ia = df_temp_ia[df_temp_ia["nome_cidade"] == filtro_cidade_ia]
 
-# 📅 Filtro por data de plantio
-st.markdown("#### 📅 Filtro por Data de Plantio")
-
-# Conversão para datetime
-df_temp_ia["data_plantio"] = pd.to_datetime(
-    df_temp_ia["data_plantio"], errors="coerce")
-data_min_ia = df_temp_ia["data_plantio"].min().date()
-data_max_ia = df_temp_ia["data_plantio"].max().date()
-
-col_d1, col_d2 = st.columns(2)
-with col_d1:
-    data_inicio_ia = st.date_input("Data Inicial", value=data_min_ia,
-                                   min_value=data_min_ia, max_value=data_max_ia, key="data_ini_ia")
-with col_d2:
-    data_final_ia = st.date_input("Data Final", value=data_max_ia,
-                                  min_value=data_min_ia, max_value=data_max_ia, key="data_fim_ia")
-
-# Aplicar filtro de data
+# 📅 Aplicar filtro de data
 df_temp_ia = df_temp_ia[
     (df_temp_ia["data_plantio"].dt.date >= data_inicio_ia) &
     (df_temp_ia["data_plantio"].dt.date <= data_final_ia)
@@ -674,7 +690,6 @@ df_temp_ia = df_temp_ia[
 df_t = df_temp_ia.dropna(subset=["tratamento", "fazenda", "prod_13_sc_ha"])
 df_t = df_t.groupby(["fazenda", "tratamento"], as_index=False)[
     "prod_13_sc_ha"].mean()
-
 media_local = df_t.groupby(
     "fazenda")["prod_13_sc_ha"].mean().reset_index(name="media_local")
 df_t = df_t.merge(media_local, on="fazenda")
@@ -683,7 +698,7 @@ df_t = df_t.merge(media_local, on="fazenda")
 col_graf_ia, col_exp_ia = st.columns([9, 1])
 
 with col_exp_ia:
-    with st.expander("🔎 Filtrar Tratamentos", expanded=False):
+    with st.expander("🔎 Filtrar Materiais", expanded=False):
         tratamentos_ia = sorted(df_t["tratamento"].dropna().unique().tolist())
         st.markdown("**Selecione os materiais:**")
         tratamentos_selecionados_ia = [
@@ -708,7 +723,7 @@ with col_graf_ia:
                 mode="markers",
                 marker=dict(size=10, opacity=0.7),
                 name=t,
-                showlegend=False,
+                showlegend=True,
                 hovertext=[
                     f"{t} — {round(y, 1)} sc/ha" for y in df_mat["prod_13_sc_ha"]],
                 hoverinfo="text"
@@ -726,8 +741,9 @@ with col_graf_ia:
                     y=linha_y,
                     mode="lines",
                     line=dict(width=2),
+                    name=f"{t} (reta)",
                     hoverinfo="skip",
-                    showlegend=False
+                    showlegend=True
                 ))
             else:
                 fig_ia.add_annotation(
@@ -753,22 +769,18 @@ with col_graf_ia:
     fig_ia.update_layout(
         title="Relação entre Média do Local e Produção do Material",
         xaxis=dict(
-            title=dict(
-                text="Média do Local (sc/ha)",
-                font=dict(size=18, family="Arial", color="black")
-            ),
+            title=dict(text="Média do Local (sc/ha)",
+                       font=dict(size=18, family="Arial", color="black")),
             tickfont=dict(size=14, family="Arial", color="black")
         ),
         yaxis=dict(
-            title=dict(
-                text="Produção do Material (sc/ha)",
-                font=dict(size=18, family="Arial", color="black")
-            ),
+            title=dict(text="Produção do Material (sc/ha)",
+                       font=dict(size=18, family="Arial", color="black")),
             tickfont=dict(size=14, family="Arial", color="black")
         ),
         font=dict(size=16, family="Arial", color="black"),
         margin=dict(t=60, b=60),
-        showlegend=False
+        showlegend=bool(tratamentos_selecionados_ia)
     )
 
     st.plotly_chart(fig_ia, use_container_width=True)
