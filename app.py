@@ -7,7 +7,6 @@ import folium
 import numpy as np
 import plotly.graph_objects as go
 from supabase import create_client
-from streamlit import cache_data
 from streamlit_folium import st_folium
 
 # 🔐 Supabase config
@@ -20,13 +19,13 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 VIEW = "view_resultados"
 
 
-@cache_data
+@st.cache_data
 def fetch_table(table_name):
     try:
         response = supabase.table(table_name).select("*").execute()
-        if hasattr(response, 'error') and response.error:
+        if not response.data:
             st.error(
-                f"Erro ao obter dados da view {table_name}: {response.error}")
+                f"Erro ao obter dados da view {table_name}: Status {getattr(response, 'status_code', 'desconhecido')}")
             return pd.DataFrame()
         return pd.DataFrame(response.data)
     except Exception as e:
@@ -38,7 +37,7 @@ def fetch_table(table_name):
 
 def to_excel(df):
     buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:  # type: ignore
         df.to_excel(writer, index=False, sheet_name='Dados')
     buffer.seek(0)
     return buffer
@@ -192,17 +191,17 @@ st.markdown(f"""
         <div class="card-subtitle">Total de fazendas com resultados</div>
     </div>
     <div class="card">
-        <div class="card-title"># GD Total</div>
+        <div class="card-title"># Total de Áreas</div>
         <div class="card-number">{total_resultados}</div>
         <div class="card-subtitle">Total de materiais na base</div>
     </div>
     <div class="card">
-        <div class="card-title"># GD Em andamento</div>
+        <div class="card-title"># Áreas em andamento</div>
         <div class="card-number">{gd_em_andamento}</div>
         <div class="card-subtitle">Áreas de GD ainda em andamento</div>
     </div>
     <div class="card">
-        <div class="card-title"># GD Colhido</div>
+        <div class="card-title"># Áreas colhidas</div>
         <div class="card-number">{gd_colhido}</div>
         <div class="card-subtitle">Áreas de GD já colhidas</div>
     </div>
@@ -411,7 +410,7 @@ with col_exp:
             df_agrupado["tratamento"].unique().tolist())
         st.markdown("**Selecione os materiais:**")
         tratamentos_selecionados = [t for t in tratamentos_disponiveis if st.checkbox(
-            t, value=True, key=f"check_mat_{t}")]
+            t, value=False, key=f"check_mat_{t}")]
 
 with col_graf:
     df_final = df_agrupado[df_agrupado["tratamento"].isin(
@@ -533,257 +532,257 @@ with col_exp_disp2:
         tratamentos_selecionados_disp2 = [t for t in tratamentos_disp2 if st.checkbox(
             t, value=False, key=f"check_disp2_{t}")]
 
-# Exibir todos se nada for marcado
-if not tratamentos_selecionados_disp2:
-    tratamentos_selecionados_disp2 = tratamentos_disp2
-
 with col_graf_disp2:
     df_filtrado_disp2 = df_media_disp2[df_media_disp2["tratamento"].isin(
         tratamentos_selecionados_disp2)]
 
-    media_producao = df_filtrado_disp2["prod_13_sc_ha"].mean().round(2)
-    media_umidade = df_filtrado_disp2["umid_colheita"].mean().round(2)
+    if tratamentos_selecionados_disp2 and not df_filtrado_disp2.empty:
+        media_producao = df_filtrado_disp2["prod_13_sc_ha"].mean().round(2)
+        media_umidade = df_filtrado_disp2["umid_colheita"].mean().round(2)
 
-    fig_disp2 = px.scatter(
-        df_filtrado_disp2,
-        x="umid_colheita",
-        y="prod_13_sc_ha",
-        hover_name="tratamento",
-        text="tratamento",
-        labels={
-            "umid_colheita": "Umidade de Colheita (%)",
-            "prod_13_sc_ha": "Produção Média (sc/ha)"
-        }
-    )
+        fig_disp2 = px.scatter(
+            df_filtrado_disp2,
+            x="umid_colheita",
+            y="prod_13_sc_ha",
+            hover_name="tratamento",
+            text="tratamento",
+            labels={
+                "umid_colheita": "Umidade de Colheita (%)",
+                "prod_13_sc_ha": "Produção Média (sc/ha)"
+            }
+        )
 
-    fig_disp2.update_traces(
-        marker=dict(size=10, color="gray", opacity=0.8),
-        textposition="top center",
-        textfont=dict(size=16, family="Arial", color="black")
-    )
+        fig_disp2.update_traces(
+            marker=dict(size=10, color="gray", opacity=0.8),
+            textposition="top center",
+            textfont=dict(size=16, family="Arial", color="black")
+        )
 
-    fig_disp2.add_shape(
-        type="line",
-        x0=df_filtrado_disp2["umid_colheita"].min(),
-        x1=df_filtrado_disp2["umid_colheita"].max(),
-        y0=media_producao,
-        y1=media_producao,
-        line=dict(color="red", width=2, dash="dash")
-    )
-    fig_disp2.add_annotation(
-        x=df_filtrado_disp2["umid_colheita"].max(),
-        y=media_producao,
-        text=f"Média Produção: {media_producao} sc/ha",
-        showarrow=False,
-        xanchor="left",
-        yanchor="middle",
-        xshift=5,
-        font=dict(color="red", size=14)
-    )
+        fig_disp2.add_shape(
+            type="line",
+            x0=df_filtrado_disp2["umid_colheita"].min(),
+            x1=df_filtrado_disp2["umid_colheita"].max(),
+            y0=media_producao,
+            y1=media_producao,
+            line=dict(color="red", width=2, dash="dash")
+        )
+        fig_disp2.add_annotation(
+            x=df_filtrado_disp2["umid_colheita"].max(),
+            y=media_producao,
+            text=f"Média Produção: {media_producao} sc/ha",
+            showarrow=False,
+            xanchor="left",
+            yanchor="middle",
+            xshift=5,
+            font=dict(color="red", size=14)
+        )
 
-    fig_disp2.add_shape(
-        type="line",
-        x0=media_umidade,
-        x1=media_umidade,
-        y0=df_filtrado_disp2["prod_13_sc_ha"].min(),
-        y1=df_filtrado_disp2["prod_13_sc_ha"].max(),
-        line=dict(color="blue", width=2, dash="dash")
-    )
-    fig_disp2.add_annotation(
-        x=media_umidade,
-        y=df_filtrado_disp2["prod_13_sc_ha"].max(),
-        text=f"Média Umidade: {media_umidade}%",
-        showarrow=False,
-        xanchor="center",
-        yanchor="bottom",
-        yshift=10,
-        font=dict(color="blue", size=14)
-    )
+        fig_disp2.add_shape(
+            type="line",
+            x0=media_umidade,
+            x1=media_umidade,
+            y0=df_filtrado_disp2["prod_13_sc_ha"].min(),
+            y1=df_filtrado_disp2["prod_13_sc_ha"].max(),
+            line=dict(color="blue", width=2, dash="dash")
+        )
+        fig_disp2.add_annotation(
+            x=media_umidade,
+            y=df_filtrado_disp2["prod_13_sc_ha"].max(),
+            text=f"Média Umidade: {media_umidade}%",
+            showarrow=False,
+            xanchor="center",
+            yanchor="bottom",
+            yshift=10,
+            font=dict(color="blue", size=14)
+        )
 
-    fig_disp2.update_layout(
-        font=dict(size=16, family="Arial", color="black"),
-        xaxis=dict(
-            title=dict(text="Umidade de Colheita (%)", font=dict(
-                size=18, family="Arial", color="black")),
-            tickfont=dict(size=14, family="Arial", color="black")
-        ),
-        yaxis=dict(
-            title=dict(text="Produção Média (sc/ha)",
-                       font=dict(size=18, family="Arial", color="black")),
-            tickfont=dict(size=14, family="Arial", color="black")
-        ),
-        showlegend=False,
-        margin=dict(t=80, b=60)
-    )
+        fig_disp2.update_layout(
+            font=dict(size=16, family="Arial", color="black"),
+            xaxis=dict(
+                title=dict(text="Umidade de Colheita (%)", font=dict(
+                    size=18, family="Arial", color="black")),
+                tickfont=dict(size=14, family="Arial", color="black")
+            ),
+            yaxis=dict(
+                title=dict(text="Produção Média (sc/ha)",
+                           font=dict(size=18, family="Arial", color="black")),
+                tickfont=dict(size=14, family="Arial", color="black")
+            ),
+            showlegend=False,
+            margin=dict(t=80, b=60)
+        )
 
-    st.plotly_chart(fig_disp2, use_container_width=True)
+        st.plotly_chart(fig_disp2, use_container_width=True)
 
 
-# 📈 Relação: Média do Local vs Produção do Material
-st.markdown(
-    "### 📈Índice Ambiental: Relação entre Média do Local e Produção do Material")
-st.write("Selecione os filtros abaixo, incluíndo o intervalo de datas (Plantio) e escolha os materiais para visualizar a análise.")
+if False:
+    # 📈 Relação: Média do Local vs Produção do Material
+    st.markdown(
+        "### 📈Índice Ambiental: Relação entre Média do Local e Produção do Material")
+    st.write("Selecione os filtros abaixo, incluíndo o intervalo de datas (Plantio) e escolha os materiais para visualizar a análise.")
 
-# 🔁 Conversão de data
-df_resultados["data_plantio"] = pd.to_datetime(
-    df_resultados["data_plantio"], errors="coerce")
+    # 🔁 Conversão de data
+    df_resultados["data_plantio"] = pd.to_datetime(
+        df_resultados["data_plantio"], errors="coerce")
 
-# 📅 Filtros por data (ANTES dos filtros geográficos)
-data_min_ia = df_resultados["data_plantio"].min().date()
-data_max_ia = df_resultados["data_plantio"].max().date()
+    # 📅 Filtros por data (ANTES dos filtros geográficos)
+    data_min_ia = df_resultados["data_plantio"].min().date()
+    data_max_ia = df_resultados["data_plantio"].max().date()
 
-col_d1, col_d2 = st.columns(2)
-with col_d1:
-    data_inicio_ia = st.date_input(
-        "Data Inicial",
-        value=data_min_ia,
-        min_value=data_min_ia,
-        max_value=data_max_ia,
-        format="DD/MM/YYYY",
-        key="data_ini_ia"
-    )
-with col_d2:
-    data_final_ia = st.date_input(
-        "Data Final",
-        value=data_max_ia,
-        min_value=data_min_ia,
-        max_value=data_max_ia,
-        format="DD/MM/YYYY",
-        key="data_fim_ia"
-    )
+    col_d1, col_d2 = st.columns(2)
+    with col_d1:
+        data_inicio_ia = st.date_input(
+            "Data Inicial",
+            value=data_min_ia,
+            min_value=data_min_ia,
+            max_value=data_max_ia,
+            format="DD/MM/YYYY",
+            key="data_ini_ia"
+        )
+    with col_d2:
+        data_final_ia = st.date_input(
+            "Data Final",
+            value=data_max_ia,
+            min_value=data_min_ia,
+            max_value=data_max_ia,
+            format="DD/MM/YYYY",
+            key="data_fim_ia"
+        )
 
-# 🔎 Filtros específicos do bloco
-col1, col2, col3, col4 = st.columns(4)
+    # 🔎 Filtros específicos do bloco
+    col1, col2, col3, col4 = st.columns(4)
 
-with col1:
-    filtro_epoca_ia = st.selectbox("Época", [
-                                   "Todos"] + sorted(df_resultados["epoca"].dropna().unique()), key="epoca_ia")
-with col2:
-    filtro_regional_ia = st.selectbox("Regional", [
-                                      "Todos"] + sorted(df_resultados["regional"].dropna().unique()), key="regional_ia")
+    with col1:
+        filtro_epoca_ia = st.selectbox("Época", [
+            "Todos"] + sorted(df_resultados["epoca"].dropna().unique()), key="epoca_ia")
+    with col2:
+        filtro_regional_ia = st.selectbox("Regional", [
+            "Todos"] + sorted(df_resultados["regional"].dropna().unique()), key="regional_ia")
 
-df_temp_ia = df_resultados.copy()
-if filtro_epoca_ia != "Todos":
-    df_temp_ia = df_temp_ia[df_temp_ia["epoca"] == filtro_epoca_ia]
-if filtro_regional_ia != "Todos":
-    df_temp_ia = df_temp_ia[df_temp_ia["regional"] == filtro_regional_ia]
+    df_temp_ia = df_resultados.copy()
+    if filtro_epoca_ia != "Todos":
+        df_temp_ia = df_temp_ia[df_temp_ia["epoca"] == filtro_epoca_ia]
+    if filtro_regional_ia != "Todos":
+        df_temp_ia = df_temp_ia[df_temp_ia["regional"] == filtro_regional_ia]
 
-with col3:
-    filtro_estado_ia = st.selectbox("Estado", [
-                                    "Todos"] + sorted(df_temp_ia["nome_estado"].dropna().unique()), key="estado_ia")
-if filtro_estado_ia != "Todos":
-    df_temp_ia = df_temp_ia[df_temp_ia["nome_estado"] == filtro_estado_ia]
+    with col3:
+        filtro_estado_ia = st.selectbox("Estado", [
+            "Todos"] + sorted(df_temp_ia["nome_estado"].dropna().unique()), key="estado_ia")
+    if filtro_estado_ia != "Todos":
+        df_temp_ia = df_temp_ia[df_temp_ia["nome_estado"] == filtro_estado_ia]
 
-with col4:
-    filtro_cidade_ia = st.selectbox("Cidade", [
-                                    "Todos"] + sorted(df_temp_ia["nome_cidade"].dropna().unique()), key="cidade_ia")
-if filtro_cidade_ia != "Todos":
-    df_temp_ia = df_temp_ia[df_temp_ia["nome_cidade"] == filtro_cidade_ia]
+    with col4:
+        filtro_cidade_ia = st.selectbox("Cidade", [
+            "Todos"] + sorted(df_temp_ia["nome_cidade"].dropna().unique()), key="cidade_ia")
+    if filtro_cidade_ia != "Todos":
+        df_temp_ia = df_temp_ia[df_temp_ia["nome_cidade"] == filtro_cidade_ia]
 
-# 📅 Aplicar filtro de data
-df_temp_ia = df_temp_ia[
-    (df_temp_ia["data_plantio"].dt.date >= data_inicio_ia) &
-    (df_temp_ia["data_plantio"].dt.date <= data_final_ia)
-]
+    # 📅 Aplicar filtro de data
+    df_temp_ia = df_temp_ia[
+        (df_temp_ia["data_plantio"].dt.date >= data_inicio_ia) &
+        (df_temp_ia["data_plantio"].dt.date <= data_final_ia)
+    ]
 
-# 📊 Cálculo da média do local e da produção
-df_t = df_temp_ia.dropna(subset=["tratamento", "fazenda", "prod_13_sc_ha"])
-df_t = df_t.groupby(["fazenda", "tratamento"], as_index=False)[
-    "prod_13_sc_ha"].mean()
-media_local = df_t.groupby(
-    "fazenda")["prod_13_sc_ha"].mean().reset_index(name="media_local")
-df_t = df_t.merge(media_local, on="fazenda")
+    # 📊 Cálculo da média do local e da produção
+    df_t = df_temp_ia.dropna(subset=["tratamento", "fazenda", "prod_13_sc_ha"])
+    df_t = df_t.groupby(["fazenda", "tratamento"], as_index=False)[
+        "prod_13_sc_ha"].mean()
+    media_local = df_t.groupby(
+        "fazenda")["prod_13_sc_ha"].mean().reset_index(name="media_local")
+    df_t = df_t.merge(media_local, on="fazenda")
 
-# 📦 Layout com gráfico + filtro de tratamentos
-col_graf_ia, col_exp_ia = st.columns([9, 1])
+    # 📦 Layout com gráfico + filtro de tratamentos
+    col_graf_ia, col_exp_ia = st.columns([9, 1])
 
-with col_exp_ia:
-    with st.expander("🔎 Filtrar Materiais", expanded=False):
-        tratamentos_ia = sorted(df_t["tratamento"].dropna().unique().tolist())
-        st.markdown("**Selecione os materiais:**")
-        tratamentos_selecionados_ia = [
-            t for t in tratamentos_ia if st.checkbox(t, value=False, key=f"check_ia_{t}")]
+    with col_exp_ia:
+        with st.expander("🔎 Filtrar Materiais", expanded=False):
+            tratamentos_ia = sorted(
+                df_t["tratamento"].dropna().unique().tolist())
+            st.markdown("**Selecione os materiais:**")
+            tratamentos_selecionados_ia = [
+                t for t in tratamentos_ia if st.checkbox(t, value=False, key=f"check_ia_{t}")]
 
-with col_graf_ia:
-    import numpy as np
-    import plotly.graph_objects as go
+    with col_graf_ia:
+        import numpy as np
+        import plotly.graph_objects as go
 
-    fig_ia = go.Figure()
+        fig_ia = go.Figure()
 
-    if tratamentos_selecionados_ia:
-        df_filtrado_ia = df_t[df_t["tratamento"].isin(
-            tratamentos_selecionados_ia)]
+        if tratamentos_selecionados_ia:
+            df_filtrado_ia = df_t[df_t["tratamento"].isin(
+                tratamentos_selecionados_ia)]
 
-        for t in tratamentos_selecionados_ia:
-            df_mat = df_filtrado_ia[df_filtrado_ia["tratamento"] == t]
-
-            fig_ia.add_trace(go.Scatter(
-                x=df_mat["media_local"],
-                y=df_mat["prod_13_sc_ha"],
-                mode="markers",
-                marker=dict(size=10, opacity=0.7),
-                name=t,
-                showlegend=True,
-                hovertext=[
-                    f"{t} — {round(y, 1)} sc/ha" for y in df_mat["prod_13_sc_ha"]],
-                hoverinfo="text"
-            ))
-
-            if len(df_mat) >= 2:
-                coef = np.polyfit(df_mat["media_local"],
-                                  df_mat["prod_13_sc_ha"], 1)
-                linha_x = np.linspace(
-                    df_mat["media_local"].min(), df_mat["media_local"].max(), 100)
-                linha_y = coef[0] * linha_x + coef[1]
+            for t in tratamentos_selecionados_ia:
+                df_mat = df_filtrado_ia[df_filtrado_ia["tratamento"] == t]
 
                 fig_ia.add_trace(go.Scatter(
-                    x=linha_x,
-                    y=linha_y,
-                    mode="lines",
-                    line=dict(width=2),
-                    name=f"{t} (reta)",
-                    hoverinfo="skip",
-                    showlegend=True
+                    x=df_mat["media_local"],
+                    y=df_mat["prod_13_sc_ha"],
+                    mode="markers",
+                    marker=dict(size=10, opacity=0.7),
+                    name=t,
+                    showlegend=True,
+                    hovertext=[
+                        f"{t} — {round(y, 1)} sc/ha" for y in df_mat["prod_13_sc_ha"]],
+                    hoverinfo="text"
                 ))
-            else:
-                fig_ia.add_annotation(
-                    x=df_mat["media_local"].mean() if not df_mat.empty else 0,
-                    y=df_mat["prod_13_sc_ha"].mean(
-                    ) if not df_mat.empty else 0,
-                    text="Número de resultados insuficiente",
-                    showarrow=False,
-                    font=dict(color="gray", size=12)
-                )
-    else:
-        fig_ia.add_trace(go.Scatter(
-            x=df_t["media_local"],
-            y=df_t["prod_13_sc_ha"],
-            mode="markers",
-            marker=dict(size=8, color="lightgray", opacity=0.6),
-            hovertext=[f"{t} — {round(y, 1)} sc/ha" for t,
-                       y in zip(df_t["tratamento"], df_t["prod_13_sc_ha"])],
-            hoverinfo="text",
-            showlegend=False
-        ))
 
-    fig_ia.update_layout(
-        title="Relação entre Média do Local e Produção do Material",
-        xaxis=dict(
-            title=dict(text="Média do Local (sc/ha)",
-                       font=dict(size=18, family="Arial", color="black")),
-            tickfont=dict(size=14, family="Arial", color="black")
-        ),
-        yaxis=dict(
-            title=dict(text="Produção do Material (sc/ha)",
-                       font=dict(size=18, family="Arial", color="black")),
-            tickfont=dict(size=14, family="Arial", color="black")
-        ),
-        font=dict(size=16, family="Arial", color="black"),
-        margin=dict(t=60, b=60),
-        showlegend=bool(tratamentos_selecionados_ia)
-    )
+                if len(df_mat) >= 2:
+                    coef = np.polyfit(df_mat["media_local"],
+                                      df_mat["prod_13_sc_ha"], 1)
+                    linha_x = np.linspace(
+                        df_mat["media_local"].min(), df_mat["media_local"].max(), 100)
+                    linha_y = coef[0] * linha_x + coef[1]
 
-    st.plotly_chart(fig_ia, use_container_width=True)
+                    fig_ia.add_trace(go.Scatter(
+                        x=linha_x,
+                        y=linha_y,
+                        mode="lines",
+                        line=dict(width=2),
+                        name=f"{t} (reta)",
+                        hoverinfo="skip",
+                        showlegend=True
+                    ))
+                else:
+                    fig_ia.add_annotation(
+                        x=df_mat["media_local"].mean(
+                        ) if not df_mat.empty else 0,
+                        y=df_mat["prod_13_sc_ha"].mean(
+                        ) if not df_mat.empty else 0,
+                        text="Número de resultados insuficiente",
+                        showarrow=False,
+                        font=dict(color="gray", size=12)
+                    )
+        else:
+            fig_ia.add_trace(go.Scatter(
+                x=df_t["media_local"],
+                y=df_t["prod_13_sc_ha"],
+                mode="markers",
+                marker=dict(size=8, color="lightgray", opacity=0.6),
+                hovertext=[f"{t} — {round(y, 1)} sc/ha" for t,
+                           y in zip(df_t["tratamento"], df_t["prod_13_sc_ha"])],
+                hoverinfo="text",
+                showlegend=False
+            ))
+
+        fig_ia.update_layout(
+            title="Relação entre Média do Local e Produção do Material",
+            xaxis=dict(
+                title=dict(text="Média do Local (sc/ha)",
+                           font=dict(size=18, family="Arial", color="black")),
+                tickfont=dict(size=14, family="Arial", color="black")
+            ),
+            yaxis=dict(
+                title=dict(text="Produção do Material (sc/ha)",
+                           font=dict(size=18, family="Arial", color="black")),
+                tickfont=dict(size=14, family="Arial", color="black")
+            ),
+            font=dict(size=16, family="Arial", color="black"),
+            margin=dict(t=60, b=60),
+            showlegend=bool(tratamentos_selecionados_ia)
+        )
+
+        st.plotly_chart(fig_ia, use_container_width=True)
 
 
 # 📊 Tabela + botão de exportar com AgGrid
@@ -873,8 +872,9 @@ AgGrid(
 
 # 💾 Exportar
 output = io.BytesIO()
-with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+with pd.ExcelWriter(output, engine='xlsxwriter') as writer:  # type: ignore
     df_visu.to_excel(writer, index=False, sheet_name="resultados_gd")
+output.seek(0)
 
 st.download_button(
     label="📥 Exportar Resultados para Excel",
