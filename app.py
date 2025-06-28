@@ -144,9 +144,11 @@ df_resultados_filtrados = df_filtros.copy()
 
 # 🧮 Indicadores
 total_fazendas = df_resultados_filtrados["fazenda_id"].nunique()
-total_resultados = len(df_resultados_filtrados)
-gd_em_andamento = df_resultados_filtrados["data_colheita"].isna().sum()
-gd_colhido = df_resultados_filtrados["data_colheita"].notna().sum()
+total_resultados = df_resultados_filtrados["resultado_id"].nunique()
+gd_em_andamento = df_resultados_filtrados.loc[df_resultados_filtrados["data_colheita"].isna(
+), "resultado_id"].nunique()
+gd_colhido = df_resultados_filtrados.loc[df_resultados_filtrados["data_colheita"].notna(
+), "resultado_id"].nunique()
 
 # 💡 Cards HTML com f-strings
 st.markdown(f"""
@@ -325,8 +327,14 @@ df_resultados["data_plantio"] = pd.to_datetime(
     df_resultados["data_plantio"], errors="coerce")
 
 # 📅 Datas mínima e máxima
-data_min = df_resultados["data_plantio"].min().date()
-data_max = df_resultados["data_plantio"].max().date()
+data_min = df_resultados["data_plantio"].min()
+data_max = df_resultados["data_plantio"].max()
+if pd.notna(data_min) and pd.notna(data_max):
+    data_min = data_min.date()
+    data_max = data_max.date()
+else:
+    data_min = pd.Timestamp.now().date()
+    data_max = pd.Timestamp.now().date()
 
 # 📅 Seletor de Datas
 col_data_ini, col_data_fim = st.columns(2)
@@ -443,7 +451,7 @@ st.markdown("### 📈 Dispersão: Produção vs Umidade de Colheita")
 st.markdown(
     "Selecione os filtros abaixo, incluindo o intervalo de datas (Plantio) e os materiais desejados para análise.")
 
-# 🔁 Conversão de colunas
+# 🔁 Conversão de colunas (otimizada - removendo duplicação)
 df_resultados["prod_13_sc_ha"] = pd.to_numeric(
     df_resultados["prod_13_sc_ha"], errors="coerce")
 df_resultados["umid_colheita"] = pd.to_numeric(
@@ -454,14 +462,20 @@ df_resultados["data_plantio"] = pd.to_datetime(
 # 📅 Filtros de Data
 data_min = df_resultados["data_plantio"].min()
 data_max = df_resultados["data_plantio"].max()
+if pd.notna(data_min) and pd.notna(data_max):
+    data_min = data_min.date()
+    data_max = data_max.date()
+else:
+    data_min = pd.Timestamp.now().date()
+    data_max = pd.Timestamp.now().date()
 
 col_data1, col_data2 = st.columns(2)
 with col_data1:
-    data_inicio_disp2 = st.date_input("Data Inicial", value=data_min.date(), min_value=data_min.date(),
-                                      max_value=data_max.date(), format="DD/MM/YYYY", key="data_inicio_disp2")
+    data_inicio_disp2 = st.date_input("Data Inicial", value=data_min, min_value=data_min,
+                                      max_value=data_max, format="DD/MM/YYYY", key="data_inicio_disp2")
 with col_data2:
-    data_final_disp2 = st.date_input("Data Final", value=data_max.date(), min_value=data_min.date(),
-                                     max_value=data_max.date(), format="DD/MM/YYYY", key="data_final_disp2")
+    data_final_disp2 = st.date_input("Data Final", value=data_max, min_value=data_min,
+                                     max_value=data_max, format="DD/MM/YYYY", key="data_final_disp2")
 
 # 🔎 Filtros
 col1, col2, col3, col4, col5, col6 = st.columns(6)
@@ -614,7 +628,7 @@ with col_graf_disp2:
 
         st.plotly_chart(fig_disp2, use_container_width=True)
 
-
+# Restaurar o bloco if False: comentado para referência futura
 if False:
     # 📈 Relação: Média do Local vs Produção do Material
     st.markdown(
@@ -703,9 +717,6 @@ if False:
                 t for t in tratamentos_ia if st.checkbox(t, value=False, key=f"check_ia_{t}")]
 
     with col_graf_ia:
-        import numpy as np
-        import plotly.graph_objects as go
-
         fig_ia = go.Figure()
 
         if tratamentos_selecionados_ia:
@@ -784,7 +795,6 @@ if False:
 
         st.plotly_chart(fig_ia, use_container_width=True)
 
-
 # 📊 Tabela + botão de exportar com AgGrid
 
 
@@ -841,7 +851,8 @@ colunas_visiveis = [
 ]
 
 # 📦 Aplicar seleção + renomeação
-df_visu = df_resultados[colunas_visiveis].rename(columns=renomear_colunas)
+df_visu = df_resultados.drop_duplicates(subset=["resultado_id"])[
+    colunas_visiveis].rename(columns=renomear_colunas)
 
 # 📅 Formatar datas para exibição
 df_visu["Data Plantio"] = pd.to_datetime(
