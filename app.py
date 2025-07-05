@@ -20,8 +20,8 @@ from plotly.colors import qualitative as plotly_qual
 # =====================
 
 # Supabase config
-SUPABASE_URL = "https://wrhysptzozlodsgbonor.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyaHlzcHR6b3psb2RzZ2Jvbm9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5NjYwMzksImV4cCI6MjA2NDU0MjAzOX0.Clp7BvkTZDxnD3iXhFITBDdnnwJ-6-BYwtPVTi2OFmc"
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 if not SUPABASE_KEY:
     st.warning(
         "Chave do Supabase não encontrada. Defina a variável de ambiente SUPABASE_KEY.")
