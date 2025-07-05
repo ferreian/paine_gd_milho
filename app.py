@@ -46,10 +46,14 @@ def atualizar_bases():
 
 @st.cache_data
 def fetch_table(table_name):
-    response = supabase.table(table_name).select("*").execute()
-    if response.data:
-        return pd.DataFrame(response.data)
-    else:
+    try:
+        response = supabase.table(table_name).select("*").execute()
+        if response.data:
+            return pd.DataFrame(response.data)
+        else:
+            return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Erro ao buscar dados da tabela '{table_name}': {e}")
         return pd.DataFrame()
 
 
