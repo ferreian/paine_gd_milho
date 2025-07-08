@@ -834,14 +834,16 @@ with col3:
                 lon_list.append(lon_centroid)
                 lat_list.append(lat_centroid)
                 text_list.append(texto)
-                scatter = go.Scattergeo(
-                    lon=lon_list,
-                    lat=lat_list,
-                    text=text_list,
-                    mode="text",
-                    textfont=dict(size=16, color="#222"),
-                )
-    fig_andamento.add_trace(scatter)
+    # Só cria e adiciona o scatter se houver dados
+    if lon_list and lat_list and text_list:
+        scatter = go.Scattergeo(
+            lon=lon_list,
+            lat=lat_list,
+            text=text_list,
+            mode="text",
+            textfont=dict(size=16, color="#222"),
+        )
+        fig_andamento.add_trace(scatter)
     st.plotly_chart(fig_andamento, use_container_width=True)
 
     # Exibir badge para 'Sem Estado' em andamento
@@ -928,14 +930,16 @@ with col4:
                 lon_list.append(lon_centroid)
                 lat_list.append(lat_centroid)
                 text_list.append(texto)
-    scatter = go.Scattergeo(
-        lon=lon_list,
-        lat=lat_list,
-        text=text_list,
-        mode="text",
-        textfont=dict(size=16, color="#222"),
-    )
-    fig_colhido.add_trace(scatter)
+    # Só cria e adiciona o scatter se houver dados
+    if lon_list and lat_list and text_list:
+        scatter = go.Scattergeo(
+            lon=lon_list,
+            lat=lat_list,
+            text=text_list,
+            mode="text",
+            textfont=dict(size=16, color="#222"),
+        )
+        fig_colhido.add_trace(scatter)
     st.plotly_chart(fig_colhido, use_container_width=True)
     # Exibir badge para 'Sem Estado' colhido
     valor_sem_estado_colhido = df_estado_colhido.loc[df_estado_colhido['estado']
