@@ -303,7 +303,6 @@ df_resultados_usuarios = padronizar_pop_cols(
 format_float_cols(df_resultados_usuarios, [
                   "umid_colheita", "resultado", "prod_corr", "area_total"])
 
-# 5. NÃO chame convert_to_float nessas colunas novamente!
 
 # Remover a coluna 'fazenda_id' antes do merge final
 if 'fazenda_id' in df_resultados_usuarios.columns:
@@ -438,6 +437,13 @@ with st.sidebar:
     if filtro_fazenda and filtro_fazenda != "Todos":
         df_filtros = df_filtros[df_filtros["fazenda"] == filtro_fazenda]
 
+    # Tipo GD
+    tipos_gd = ["Todos"] + sorted(pd.Series(df_filtros["tipo_GD"]).dropna().astype(str).unique()) if (
+        isinstance(df_filtros, pd.DataFrame) and "tipo_GD" in df_filtros.columns) else ["Todos"]
+    filtro_tipo_gd = st.selectbox("Tipo GD", tipos_gd)
+    if filtro_tipo_gd and filtro_tipo_gd != "Todos":
+        df_filtros = df_filtros[df_filtros["tipo_GD"] == filtro_tipo_gd]
+
 # =====================
 # 10. APLICAÇÃO DOS FILTROS NO DATAFRAME FILTRADO
 # =====================
@@ -466,6 +472,9 @@ if filtro_produtor and filtro_produtor != "Todos":
 
 if filtro_fazenda and filtro_fazenda != "Todos":
     df_resultados_filtrado = df_resultados_filtrado[df_resultados_filtrado["fazenda"] == filtro_fazenda]
+
+if filtro_tipo_gd and filtro_tipo_gd != "Todos":
+    df_resultados_filtrado = df_resultados_filtrado[df_resultados_filtrado["tipo_GD"] == filtro_tipo_gd]
 
 # Garante a coluna status correta ANTES dos gráficos
 if isinstance(df_resultados_filtrado, pd.DataFrame) and 'data_colheita' in df_resultados_filtrado.columns:
@@ -1353,6 +1362,7 @@ colunas_resultados = [
     "data_plantio",
     "data_colheita",
     "tratamento",
+    "tipo_GD",
     "umid_colheita",
     "prod_corr",
     "pmg",
